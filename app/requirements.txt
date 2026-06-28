@@ -1,0 +1,9 @@
+streamlit
+pandas
+pymongo
+dnspython
+certifi
+requests
+python-dotenv
+python-whois
+cryptography
