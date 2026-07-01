@@ -4,9 +4,14 @@ import socket
 import certifi
 import re
 import requests
+import os
 import whois
 from datetime import datetime
 from urllib.parse import urlparse
+
+#Fichero con dominios fiables
+RUTA_SCRIPT = os.path.dirname(os.path.abspath(__file__))
+FICHERO_LISTA_BLANCA = os.path.join(RUTA_SCRIPT, "lista_blanca.txt")
 
 # =================================================================
 # 0. NUEVO: OBTENER DOMINIO REGISTRABLE PARA WHOIS
@@ -276,7 +281,25 @@ def verificar_coincidencia_entidad(nombre_usuario, nombre_certificado):
 
     return u in c or c in u
 
+def cargar_lista_blanca():
+    """Lee la lista blanca directamente desde el fichero externo."""
+    try:
+        with open(FICHERO_LISTA_BLANCA, "r", encoding="utf-8") as f:
+            # Lee cada línea, limpia espacios/saltos y descarta líneas vacías
+            return [linea.strip() for linea in f if linea.strip()]
+    except FileNotFoundError:
+        # Por si acaso borras el archivo por error, que el programa no se rompa
+        print(f"⚠️ Alerta: No se encontró '{FICHERO_LISTA_BLANCA}'. Trabajando sin lista blanca.")
+        return []
 
+def añadir_a_lista_blanca(dominio):
+    """Añade un nuevo dominio al fichero si no está ya dentro."""
+    dominios = cargar_lista_blanca()
+    if dominio not in dominios:
+        with open(FICHERO_LISTA_BLANCA, "a", encoding="utf-8") as f:
+            f.write(f"{dominio}\n")
+        print(f"--> [LISTA BLANCA] '{dominio}' añadido automáticamente por riesgo 0.")
+    
 # =================================================================
 # 7. PUNTUACIÓN (MEJORADA)
 # =================================================================
@@ -289,35 +312,8 @@ def calcular_puntos(dominio, dns_info, ssl_info, coincide, geo_info=None, edad_d
     penalizaciones = []
     puntos = 0
 
-   # --- LISTA BLANCA DIVIDIDA POR SECTORES ---
-    lista_blanca = [
-        # Grandes Tecnológicas y Correo 
-        "google.com", "microsoft.com", "apple.com", "amazon.com", "github.com", 
-        "outlook.com", "live.com", "hotmail.com", "yahoo.com", "icloud.com",
-        
-        # Banca y Finanzas
-        "caixabank.es", "caixabank.com", "bbva.es", "bbva.com", "santander.com",
-        "bancosantander.es", "sabadell.com", "bancosabadell.com", "bankinter.com", 
-        "ing.es", "abanca.com", "unicajabanco.es", "kutxabank.es", "ibercaja.es", 
-        "openbank.es", "revolut.com", "paypal.com", "bizum.es",
-        
-        # Logística y Paquetería 
-        "correos.es", "correosprepago.es", "dhl.com", "dhl.es", "fedex.com", 
-        "ups.com", "seur.com", "mrw.es", "gls-spain.es", "gls-group.eu", 
-        "nacex.es", "dpd.com",
-        
-        # Administración Pública y Sanidad
-        "agenciatributaria.gob.es", "seg-social.es", "fnmt.es", "red.es", "boe.es",
-        "clave.gob.es", "dgt.es", "sanidad.gob.es", "mscbs.gob.es", "justicia.es",
-        
-        # Telecomunicaciones 
-        "movistar.es", "vodafone.es", "orange.es", "yoigo.com", "masmovil.es",
-        "digimobil.es", "pepephone.com", "o2online.es",
-        
-        # Pasarelas de Pago y Comercio Electrónico Común
-        "stripe.com", "shopify.com", "aliexpress.com", "ebay.es"
-    ]
-
+    #Cargo la lista con los dominios
+    lista_blanca = cargar_lista_blanca()
     if any(dominio == db or dominio.endswith("." + db) for db in lista_blanca):
         return 0, ["Dominio en lista blanca: riesgo 0"]
 
@@ -368,21 +364,26 @@ def calcular_puntos(dominio, dns_info, ssl_info, coincide, geo_info=None, edad_d
             penalizaciones.append(f"+15: CA automática sin validación de identidad ({ssl_info['ca']})")
 
         # WR2 es el intermedio de Google Trust Services — solo debería aparecer en dominios de Google
+        
         if ca_lower == "wr2":
-            dominio_base = obtener_dominio_registrable(dominio)
-            if dominio_base != "google.com":
+            dominio_base = obtener_dominio_registrable(dominio).lower()
+            cn_certificado = ssl_info.get('common_name', '').lower() # Asegúrate de que tu ssl_info extraiga el CN
+            
+            es_de_google = dominio_base.startswith("google.") or "google" in cn_certificado
+            
+            if not es_de_google:
                 puntos += 40
-                penalizaciones.append(f"+40: CA de Google (WR2) usada en un dominio que no es de Google")
+                penalizaciones.append(f"+40: CA de Google (WR2) usada en un dominio ajeno a la compañía")
 
     # --- 5. TLD sospechoso ---
     tld_sospechosos = [
-        # Genéricos abusados en smishing/phishing
+        # Genéricos localizados en smishing/phishing
         ".top", ".xyz", ".click", ".shop", ".live", ".online", ".lol", ".site",
         ".icu", ".vip", ".buzz", ".club", ".work", ".link", ".bid", ".win",
         ".loan", ".trade", ".review", ".party", ".date", ".faith", ".stream",
         ".racing", ".download", ".accountant", ".science", ".men", ".webcam",
         ".monster", ".sbs", ".cyou", ".cfd",
-        # TLDs gratuitos/muy baratos históricamente abusados
+        # TLDs gratuitos/muy baratos 
         ".tk", ".ml", ".ga", ".cf", ".gq", ".pw",
     ]
     tld_sospechoso = any(dominio.endswith(t) for t in tld_sospechosos)
@@ -406,4 +407,12 @@ def calcular_puntos(dominio, dns_info, ssl_info, coincide, geo_info=None, edad_d
         puntos += 15
         penalizaciones.append("+15: El dominio contiene palabras típicas de phishing")
 
-    return min(puntos, 100), penalizaciones
+    puntuacion_final = min(puntos, 100)
+    
+    if puntuacion_final == 0:
+        print("   • 🎉 ¡Riesgo 0 detectado! Intentando escribir en el fichero...")
+        dominio_base = obtener_dominio_registrable(dominio)
+        añadir_a_lista_blanca(dominio_base)
+
+    return puntuacion_final, penalizaciones
+
