@@ -150,11 +150,11 @@ else:
                         st.divider() # Una línea fina para separar
                         if st.session_state.empresa_a_procesar:
                             if coincide:
-                                st.success(f"✅ Identidad Verificada: El certificado pertenece a **{st.session_state.empresa_a_procesar}**.")
+                                st.success(f"Identidad Verificada: El certificado pertenece a **{st.session_state.empresa_a_procesar}**.")
                             else:
-                                st.error(f"❌ Alerta de Identidad: Se esperaba **{st.session_state.empresa_a_procesar}** pero el certificado es de **{ssl_res['org']}**.")
+                                st.error(f" Alerta de Identidad: Se esperaba **{st.session_state.empresa_a_procesar}** pero el certificado es de **{ssl_res['org']}**.")
                         else:
-                            st.info("ℹ️ No se proporcionó una empresa para validar la identidad.")
+                            st.info(" No se proporcionó una empresa para validar la identidad.")
                     with c2:
                         st.write("**Registros de Red (DNS):**")
                         st.write(f"- IP Servidor (A): `{dns_res['A']}`")
