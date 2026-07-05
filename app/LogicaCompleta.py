@@ -9,12 +9,12 @@ import whois
 from datetime import datetime
 from urllib.parse import urlparse
 
-#Fichero con dominios fiables
+#Fichero con dominios fiables (lista blanca)
 RUTA_SCRIPT = os.path.dirname(os.path.abspath(__file__))
 FICHERO_LISTA_BLANCA = os.path.join(RUTA_SCRIPT, "lista_blanca.txt")
 
 # =================================================================
-# 0. NUEVO: OBTENER DOMINIO REGISTRABLE PARA WHOIS
+# OBTENER DOMINIO REGISTRABLE
 # =================================================================
 def obtener_dominio_registrable(dominio):
     """
@@ -27,7 +27,7 @@ def obtener_dominio_registrable(dominio):
     return dominio
 
 # =================================================================
-# 1. EXTRACCIÓN Y LIMPIEZA (MEJORADA)
+# EXTRACCIÓN Y LIMPIEZA (MEJORADA)
 # =================================================================
 def extraer_dominio_limpio(texto_sms):
     """
@@ -60,7 +60,7 @@ def extraer_url_completa(texto_sms):
 
 
 # =================================================================
-# 2. INFRAESTRUCTURA DNS (MEJORADA)
+# INFRAESTRUCTURA DNS
 # =================================================================
 def analizar_infraestructura_dns(dominio, timeout=2.5):
     """
@@ -96,7 +96,7 @@ def analizar_infraestructura_dns(dominio, timeout=2.5):
 
 
 # =================================================================
-# 3. GEOLOCALIZACIÓN (MEJORADA)
+# GEOLOCALIZACIÓN 
 # =================================================================
 def geolocalizar_ip(ip, timeout=2.5):
     """
@@ -128,7 +128,7 @@ def geolocalizar_ip(ip, timeout=2.5):
 
 
 # =================================================================
-# 4. CERTIFICADO SSL (MEJORADO)
+# CERTIFICADO SSL 
 # =================================================================
 def obtener_datos_ssl(dominio, timeout=2.5):
     """
@@ -165,7 +165,7 @@ def obtener_datos_ssl(dominio, timeout=2.5):
 
 
 # =================================================================
-# 5. WHOIS — RDAP (gratuito, sin API key, estándar IANA)
+# WHOIS — RDAP (gratuito, sin API key, estándar IANA)
 # =================================================================
 
 _RDAP_HEADERS = {
@@ -255,7 +255,7 @@ def obtener_edad_dominio_rdap(dominio, timeout=2.5):
 
 
 # =================================================================
-# 6. COINCIDENCIA DE ENTIDAD (MEJORADA)
+# COINCIDENCIA DE ENTIDAD
 # =================================================================
 def verificar_coincidencia_entidad(nombre_usuario, nombre_certificado):
     """
@@ -280,6 +280,9 @@ def verificar_coincidencia_entidad(nombre_usuario, nombre_certificado):
         if c.endswith(s): c = c[:-len(s)]
 
     return u in c or c in u
+# =================================================================
+# LISTA BLANCA 
+# =================================================================
 
 def cargar_lista_blanca():
     """Lee la lista blanca directamente desde el fichero externo."""
@@ -289,7 +292,7 @@ def cargar_lista_blanca():
             return [linea.strip() for linea in f if linea.strip()]
     except FileNotFoundError:
         # Por si acaso borras el archivo por error, que el programa no se rompa
-        print(f"⚠️ Alerta: No se encontró '{FICHERO_LISTA_BLANCA}'. Trabajando sin lista blanca.")
+        print(f"Alerta: No se encontró '{FICHERO_LISTA_BLANCA}'. Trabajando sin lista blanca.")
         return []
 
 def añadir_a_lista_blanca(dominio):
@@ -301,7 +304,7 @@ def añadir_a_lista_blanca(dominio):
         print(f"--> [LISTA BLANCA] '{dominio}' añadido automáticamente por riesgo 0.")
     
 # =================================================================
-# 7. PUNTUACIÓN (MEJORADA)
+# PUNTUACIÓN
 # =================================================================
 def calcular_puntos(dominio, dns_info, ssl_info, coincide, geo_info=None, edad_dominio=None):
     """
@@ -410,7 +413,7 @@ def calcular_puntos(dominio, dns_info, ssl_info, coincide, geo_info=None, edad_d
     puntuacion_final = min(puntos, 100)
     
     if puntuacion_final == 0:
-        print("   • 🎉 ¡Riesgo 0 detectado! Intentando escribir en el fichero...")
+        print("  ¡Riesgo 0 detectado! Intentando escribir en el fichero...")
         dominio_base = obtener_dominio_registrable(dominio)
         añadir_a_lista_blanca(dominio_base)
 
