@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Variables globales para reutilizar la conexión entre llamadas (patrón singleton)
+#Variables para saber si ya se está conectado a la base de datos
+#se utiliza patrón singleton para no abrir varias conexiones
 _client = None
 _collection = None
 
@@ -59,10 +61,10 @@ def guardar_analisis(dominio, url_completa, sms_texto, empresa_esperada, puntuac
         penalizaciones   (list)  Lista de penalizaciones aplicadas durante el scoring
 
     Devuelve el _id del documento insertado/actualizado, o None si falla.
-    Un fallo en MongoDB no interrumpe la app: solo imprime el error por consola.
+    Un fallo en MongoDB no interrumpe la app: solo imprime el error.
     """
 
-    # Convertir la puntuación numérica a una etiqueta de riesgo legible
+    # Simplificar la puntuación numérica en una etiqueta entendible
     if puntuacion >= 70:
         nivel_riesgo = "FRAUDE"
     elif puntuacion > 20:
@@ -70,7 +72,7 @@ def guardar_analisis(dominio, url_completa, sms_texto, empresa_esperada, puntuac
     else:
         nivel_riesgo = "SEGURO"
 
-    # Documento que se guardará en la colección
+    # Estructura del documento que se guardará en la colección
     documento = {
         "timestamp": datetime.now(timezone.utc),   # Fecha y hora UTC del análisis
         "dominio": dominio,
